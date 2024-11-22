@@ -76,6 +76,54 @@ def read_excel_file(file, sheet_names):
         st.error(f"An error occurred while reading the Excel file: {e}")
         return pd.DataFrame()
 
+# Updated join_with_tolerance function
+def join_with_tolerance(outreach_df, event_df, tolerance_days=10):
+    """
+    Perform a left join between outreach and event data with a tolerance on dates and school name matching.
+
+    Args:
+        outreach_df (pd.DataFrame): The outreach data with 'Date' and 'School Name'.
+        event_df (pd.DataFrame): The event data with 'Date of the Event' and 'School Name'.
+        tolerance_days (int): The maximum allowed difference in days for a match.
+
+    Returns:
+        pd.DataFrame: The merged DataFrame with outreach and event data.
+    """
+    # Ensure both DataFrames have valid dates and school names
+    outreach_df = outreach_df.dropna(subset=['Date', 'School Name']).copy()
+    event_df = event_df.dropna(subset=['Date of the Event', 'School Name']).copy()
+
+    # Normalize the school names for consistent matching
+    outreach_df['School Name'] = outreach_df['School Name'].str.strip().str.lower()
+    event_df['School Name'] = event_df['School Name'].str.strip().str.lower()
+
+    # Add a key for Cartesian product merge
+    outreach_df['key'] = 1
+    event_df['key'] = 1
+
+    # Create the Cartesian product
+    merged = pd.merge(outreach_df, event_df, on='key').drop(columns=['key'])
+
+    # Filter for school name match and date difference within tolerance
+    merged = merged[
+        (merged['School Name_x'] == merged['School Name_y']) &  # Match school names
+        (merged['Date of the Event'] >= merged['Date']) &       # Event date >= Outreach date
+        ((merged['Date of the Event'] - merged['Date']).dt.days <= tolerance_days)  # Within tolerance
+    ]
+
+    # Calculate date difference
+    merged['date_diff'] = (merged['Date of the Event'] - merged['Date']).dt.days
+
+    # Keep only the closest event for each outreach date
+    closest_events = merged.loc[merged.groupby(['Date', 'School Name_x'])['date_diff'].idxmin()]
+
+    # Perform a left join to retain all outreach records
+    result = pd.merge(outreach_df, closest_events, 
+                      how='left', 
+                      on=['Date', 'School Name'], 
+                      suffixes=('', '_event'))
+    return result
+
 # Submit button and processing
 if st.button("Upload All Files to Drive and Process Data"):
     missing_files = []
@@ -113,30 +161,6 @@ if st.button("Upload All Files to Drive and Process Data"):
             # Convert date columns to datetime
             outreach_df['Date'] = pd.to_datetime(outreach_df['Date'], errors='coerce')
             event_df['Date of the Event'] = pd.to_datetime(event_df['Date of the Event'], errors='coerce')
-
-            # Perform a left join with a custom condition for the 10-day range
-            def join_with_tolerance(outreach_df, event_df, tolerance_days=10):
-                # Ensure both DataFrames have valid dates
-                outreach_df = outreach_df.dropna(subset=['Date']).copy()
-                event_df = event_df.dropna(subset=['Date of the Event']).copy()
-
-                # Add a key for Cartesian product merge
-                outreach_df['key'] = 1
-                event_df['key'] = 1
-
-                # Create the Cartesian product and filter for tolerance range
-                merged = pd.merge(outreach_df, event_df, on='key').drop(columns=['key'])
-                merged['date_diff'] = (merged['Date of the Event'] - merged['Date']).dt.days
-
-                # Filter to only include events within the tolerance range
-                merged = merged[(merged['date_diff'] >= 0) & (merged['date_diff'] <= tolerance_days)]
-
-                # Keep only the closest event for each outreach date
-                closest_events = merged.loc[merged.groupby('Date')['date_diff'].idxmin()]
-
-                # Perform a left join to retain all outreach records
-                result = pd.merge(outreach_df, closest_events, how='left', on=['Date'], suffixes=('', '_event'))
-                return result
 
             # Join outreach and event data
             event_outreach_df = join_with_tolerance(outreach_df, event_df)
