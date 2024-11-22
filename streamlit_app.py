@@ -137,7 +137,7 @@ if st.button("Upload All Files to Drive and Process Data"):
                 event_outreach_df,
                 approved_df,
                 how='left',
-                left_on='Outreach Name',
+                left_on='Name',
                 right_on='memberName',
                 suffixes=('', '_approved')
             )
@@ -149,7 +149,7 @@ if st.button("Upload All Files to Drive and Process Data"):
                 event_outreach_df,
                 submitted_df,
                 how='left',
-                left_on='Outreach Name',
+                left_on='Name',
                 right_on='memberName',
                 suffixes=('', '_submitted')
             )
