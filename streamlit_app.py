@@ -170,6 +170,17 @@ if st.button("Upload All Files to Drive and Process Data"):
             st.write("Merged data with Submitted Applications (Left Join):")
             st.dataframe(submitted_merged_df)
 
+            # Final merge between Approved and Submitted data
+            final_merged_df = pd.merge(
+                approved_merged_df,
+                submitted_merged_df,
+                how='left',
+                on=['Name'],  # Ensure 'Name' column exists in both
+                suffixes=('_approved', '_submitted')
+            )
+            st.write("Final Merged Data (Approved + Submitted):")
+            st.dataframe(final_merged_df)
+
             st.success("All data merges completed successfully!")
 
         except Exception as e:
