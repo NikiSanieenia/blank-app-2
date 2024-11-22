@@ -8,24 +8,6 @@ st.set_page_config(page_title="UCU Google Drive File Uploader", layout="centered
 st.title("UCU Google Drive File Uploader")
 st.write("Please upload the required files into their respective sections.")
 
-# Custom styling with CSS
-st.markdown("""
-   <style>
-       .stFileUploader {
-           border: 1px solid #e6e6e6;
-           padding: 10px;
-           border-radius: 10px;
-       }
-       .stButton > button {
-           background-color: #ff7f0e;
-           color: white;
-           font-weight: bold;
-           padding: 10px 20px;
-           border-radius: 10px;
-       }
-   </style>
-""", unsafe_allow_html=True)
-
 # File upload sections with headers
 st.subheader("Member Outreach File")
 uploaded_outreach = st.file_uploader("Upload Member Outreach File (Excel)", type=["xlsx"])
@@ -71,7 +53,6 @@ if st.button("Process Data"):
             all_final_dfs = []
             total_rows_individual = 0  # To track the sum of rows from all individual DataFrames
 
-            # Process each sheet in the outreach file
             for sheet_name, school in schools:
                 outreach_df = pd.read_excel(uploaded_outreach, sheet_name=sheet_name)
                 event_df = pd.read_excel(uploaded_event, sheet_name="Growth")  # Only read the "Growth" sheet
@@ -90,47 +71,40 @@ if st.button("Process Data"):
                 outreach_df = outreach_df.dropna(subset=['Date'])
                 events_df = events_df.dropna(subset=['Date of the Event'])
 
-                # Match outreach records with events within a 10-day range
-                matched_records = []
-                unmatched_event = events_df.copy()
+                # Perform a left join based on a 10-day range
+                def left_join_with_tolerance(outreach_df, events_df, tolerance_days=10):
+                    # Add a key for Cartesian product merge
+                    outreach_df['key'] = 1
+                    events_df['key'] = 1
 
-                for _, outreach_row in outreach_df.iterrows():
-                    outreach_date = outreach_row['Date']
+                    # Cartesian product merge
+                    merged = pd.merge(outreach_df, events_df, on='key').drop(columns=['key'])
+                    merged['date_diff'] = (merged['Date of the Event'] - merged['Date']).dt.days
 
-                    # Find events within 10 days after the outreach date
-                    matching_events = events_df[
-                        (events_df['Date of the Event'] >= outreach_date - pd.Timedelta(days=10)) &
-                        (events_df['Date of the Event'] <= outreach_date)
-                    ]
+                    # Filter to only include events within the tolerance range
+                    merged = merged[(merged['date_diff'] >= 0) & (merged['date_diff'] <= tolerance_days)]
 
-                    if not matching_events.empty:
-                        combined_row = {**outreach_row.to_dict()}  # Start with all outreach data
-                        for column in matching_events.columns:
-                            combined_row[f"Event_{column}"] = "/".join(matching_events[column].astype(str).unique())
-                        matched_records.append(combined_row)
+                    # Keep only the closest event for each outreach date
+                    closest_events = merged.loc[merged.groupby('Date')['date_diff'].idxmin()]
 
-                        unmatched_event = unmatched_event[
-                            ~unmatched_event['Date of the Event'].isin(matching_events['Date of the Event'])
-                        ]
-                    else:
-                        unmatched_row = {**outreach_row.to_dict(), **{f"Event_{col}": None for col in events_df.columns}}
-                        matched_records.append(unmatched_row)
+                    # Perform a left join to retain all outreach records
+                    result = pd.merge(outreach_df, closest_events, how='left', on=['Date'], suffixes=('', '_event'))
+                    return result
 
-                # Add unmatched event records
-                for _, event_row in unmatched_event.iterrows():
-                    unmatched_row = {**{col: None for col in outreach_df.columns}, **{f"Event_{col}": event_row[col] for col in event_row.index}}
-                    matched_records.append(unmatched_row)
+                # Apply the left join
+                final_df = left_join_with_tolerance(outreach_df, events_df)
 
-                # Create final DataFrame and append to list
-                final_df = pd.DataFrame(matched_records)
+                # Append the processed DataFrame to the list
                 all_final_dfs.append(final_df)
                 total_rows_individual += len(final_df)
 
             # Concatenate all DataFrames
             Phase_1 = pd.concat(all_final_dfs, ignore_index=True)
+
+            # Display the processed DataFrame
             st.write("Processed Data:")
             st.dataframe(Phase_1)
-            st.success(f"Data processed successfully! Total rows: {total_rows_individual}")
+            st.success(f"Data processed successfully! Total rows: {len(Phase_1)}")
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
