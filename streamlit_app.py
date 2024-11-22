@@ -157,26 +157,20 @@ if st.button("Upload All Files to Drive and Process Data"):
            st.dataframe(event_outreach_df)
 
 
+           # Load approved applications data
+           approved_df = pd.read_excel(uploaded_approved) if uploaded_approved.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_approved)
+           st.write("Approved applications data loaded successfully!")
+
+           # Perform a left join with approved applications
+           final_df = event_outreach_df.merge(approved_df, how='left', on='Some_Common_Column')  # Replace 'Some_Common_Column' with the actual column name
+
+           # Display the final result
+           st.write("Final Merged DataFrame (Left Join with Approved Applications):")
+           st.dataframe(final_df)
+
+
            st.success("Data processing completed successfully!")
 
 
        except Exception as e:
            st.error(f"An error occurred during data processing: {e}")
-
-
-# Display the uploaded files if they exist
-if uploaded_submitted:
-    st.subheader("Submitted Applications File Preview")
-    try:
-        submitted_df = pd.read_excel(uploaded_submitted) if uploaded_submitted.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_submitted)
-        st.dataframe(submitted_df)
-    except Exception as e:
-        st.error(f"An error occurred while previewing the Submitted Applications File: {e}")
-
-if uploaded_approved:
-    st.subheader("Approved Applications File Preview")
-    try:
-        approved_df = pd.read_excel(uploaded_approved) if uploaded_approved.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_approved)
-        st.dataframe(approved_df)
-    except Exception as e:
-        st.error(f"An error occurred while previewing the Approved Applications File: {e}")
