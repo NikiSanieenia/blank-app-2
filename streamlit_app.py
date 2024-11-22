@@ -2,13 +2,31 @@ import streamlit as st
 import pandas as pd
 
 # Set up the page
-st.set_page_config(page_title="Google Drive File Uploader", layout="centered")
+st.set_page_config(page_title="UCU Google Drive File Uploader", layout="centered")
 
 # Title and instructions
-st.title("Google Drive File Uploader")
+st.title("UCU Google Drive File Uploader")
 st.write("Please upload the required files into their respective sections.")
 
-# File upload sections
+# Custom styling with CSS
+st.markdown("""
+   <style>
+       .stFileUploader {
+           border: 1px solid #e6e6e6;
+           padding: 10px;
+           border-radius: 10px;
+       }
+       .stButton > button {
+           background-color: #ff7f0e;
+           color: white;
+           font-weight: bold;
+           padding: 10px 20px;
+           border-radius: 10px;
+       }
+   </style>
+""", unsafe_allow_html=True)
+
+# File upload sections with headers
 st.subheader("Member Outreach File")
 uploaded_outreach = st.file_uploader("Upload Member Outreach File (Excel)", type=["xlsx"])
 
@@ -31,104 +49,94 @@ growth_officer_mapping = {
     'Mo': 'Monisha Donaldson'
 }
 
-# Helper function to process data
-def process_data(outreach_file, event_file):
-    try:
-        # List of tuples containing sheet names and corresponding school names
-        schools = [
-            ('UTA', 'UT ARLINGTON'),
-            ('SCU', 'SANTA CLARA'),
-            ('UCLA', 'UCLA'),
-            ('LMU', 'LMU'),
-            ('Pepperdine', 'PEPPERDINE'),
-            ('Irvine', 'UC IRVINE'),
-            ('San Diego', 'UC SAN DIEGO'),
-            ('SMC', "SAINT MARY'S"),
-            ('Davis', 'UC DAVIS')
+# Helper function for matching outreach and event data
+def match_outreach_and_events(outreach_df, event_df, tolerance_days=10):
+    matched_records = []
+    unmatched_outreach = outreach_df.copy()
+    unmatched_event = event_df.copy()
+
+    for _, outreach_row in outreach_df.iterrows():
+        outreach_date = outreach_row['Date']
+        matching_events = event_df[
+            (event_df['Date of the Event'] >= outreach_date - pd.Timedelta(days=tolerance_days)) &
+            (event_df['Date of the Event'] <= outreach_date)
         ]
+        if not matching_events.empty:
+            combined_event_name = "/".join(matching_events['Event Name'].unique())
+            combined_event_location = "/".join(matching_events['Location'].unique())
+            combined_event_officer = "/".join(matching_events['Name'].unique())
+            matched_records.append({
+                'Outreach Date': outreach_date,
+                'Growth Officer': outreach_row.get('Growth Officer', ''),
+                'Outreach Name': outreach_row.get('Name', ''),
+                'Occupation': outreach_row.get('Occupation', ''),
+                'Email': outreach_row.get('Email', ''),
+                'Date of the Event': matching_events['Date of the Event'].iloc[0],
+                'Event Location': combined_event_location,
+                'Event Name': combined_event_name,
+                'Event Officer': combined_event_officer,
+                'Select Your School': "/".join(matching_events['Select Your School'].unique()),
+                'Request type?': "/".join(matching_events['Request type?'].unique()),
+                'Audience': "/".join(matching_events['Audience'].unique())
+            })
+            unmatched_outreach = unmatched_outreach[unmatched_outreach['Date'] != outreach_row['Date']]
+            unmatched_event = unmatched_event[~unmatched_event['Date of the Event'].isin(matching_events['Date of the Event'])]
+        else:
+            matched_records.append({
+                'Outreach Date': outreach_date,
+                'Growth Officer': outreach_row.get('Growth Officer', ''),
+                'Outreach Name': outreach_row.get('Name', ''),
+                'Occupation': outreach_row.get('Occupation', ''),
+                'Email': outreach_row.get('Email', ''),
+                'Date of the Event': None,
+                'Event Location': None,
+                'Event Name': None,
+                'Event Officer': None,
+                'Select Your School': None,
+                'Request type?': None,
+                'Audience': None
+            })
 
-        # Initialize a list to store matched records
-        matched_records = []
+    for _, event_row in unmatched_event.iterrows():
+        matched_records.append({
+            'Outreach Date': None,
+            'Growth Officer': None,
+            'Outreach Name': None,
+            'Occupation': None,
+            'Email': None,
+            'Date of the Event': event_row['Date of the Event'],
+            'Event Location': event_row['Location'],
+            'Event Name': event_row['Event Name'],
+            'Event Officer': event_row['Name'],
+            'Select Your School': event_row['Select Your School'],
+            'Request type?': event_row['Request type?'],
+            'Audience': event_row['Audience']
+        })
 
-        # Process each sheet
-        for sheet_name, school in schools:
-            # Load outreach and event data
-            outreach_df = pd.read_excel(outreach_file, sheet_name=sheet_name)
-            event_df = pd.read_excel(event_file)
+    return pd.DataFrame(matched_records)
+
+# Submit button and processing
+if st.button("Upload All Files to Drive and Process Data"):
+    if not uploaded_outreach or not uploaded_event:
+        st.error("Please upload both the Member Outreach and Event Debrief files.")
+    else:
+        try:
+            outreach_df = pd.read_excel(uploaded_outreach)
+            event_df = pd.read_excel(uploaded_event)
 
             # Standardize Growth Officer names
             outreach_df['Growth Officer'] = outreach_df['Growth Officer'].replace(growth_officer_mapping)
 
-            # Filter for relevant school in the event data
-            event_df_filtered = event_df[event_df['Select Your School'].str.strip().str.upper() == school.upper()]
-
             # Convert date columns to datetime
             outreach_df['Date'] = pd.to_datetime(outreach_df['Date'], errors='coerce')
-            event_df_filtered['Date of the Event'] = pd.to_datetime(event_df_filtered['Date of the Event'], errors='coerce')
+            event_df['Date of the Event'] = pd.to_datetime(event_df['Date of the Event'], errors='coerce')
 
-            # Drop rows with NaT in date columns
-            outreach_df = outreach_df.dropna(subset=['Date'])
-            event_df_filtered = event_df_filtered.dropna(subset=['Date of the Event'])
+            # Perform matching
+            matched_df = match_outreach_and_events(outreach_df, event_df)
 
-            # Match outreach records with events within a 10-day range
-            for _, outreach_row in outreach_df.iterrows():
-                outreach_date = outreach_row['Date']
+            st.write("Matched Data:")
+            st.dataframe(matched_df)
 
-                # Find events within 10 days after the outreach date
-                matching_events = event_df_filtered[
-                    (event_df_filtered['Date of the Event'] >= outreach_date - pd.Timedelta(days=10)) &
-                    (event_df_filtered['Date of the Event'] <= outreach_date)
-                ]
-
-                if not matching_events.empty:
-                    # Combine event details without using `.unique()`
-                    combined_event_name = "/".join(matching_events['Event Name'].astype(str))
-                    combined_event_location = "/".join(matching_events['Location'].astype(str))
-                    combined_event_officer = "/".join(matching_events['Name'].astype(str))
-
-                    # Create a combined row
-                    combined_row = {
-                        'Outreach Date': outreach_row['Date'],
-                        'Growth Officer': outreach_row.get('Growth Officer', ''),
-                        'Outreach Name': outreach_row.get('Name', ''),
-                        'Occupation': outreach_row.get('Occupation', ''),
-                        'Email': outreach_row.get('Email', ''),
-                        'Event Name': combined_event_name,
-                        'Event Location': combined_event_location,
-                        'Event Officer': combined_event_officer,
-                        'Select Your School': "/".join(matching_events['Select Your School'].astype(str)),
-                        'Request type?': "/".join(matching_events['Request type?'].astype(str)),
-                        'Audience': "/".join(matching_events['Audience'].astype(str))
-                    }
-                    matched_records.append(combined_row)
-
-        # Convert matched records to a DataFrame
-        combined_df = pd.DataFrame(matched_records)
-        return combined_df
-
-    except Exception as e:
-        st.error(f"An error occurred during data processing: {e}")
-        return pd.DataFrame()
-
-# Submit button and processing
-if st.button("Process Files"):
-    if not uploaded_outreach or not uploaded_event:
-        st.error("Please upload all required files.")
-    else:
-        # Process the uploaded files
-        result_df = process_data(uploaded_outreach, uploaded_event)
-        if not result_df.empty:
             st.success("Data processing completed successfully!")
-            st.write("Processed Data:")
-            st.dataframe(result_df)
-
-            # Download the processed file
-            csv = result_df.to_csv(index=False)
-            st.download_button(
-                label="Download Processed Data as CSV",
-                data=csv,
-                file_name="processed_data.csv",
-                mime="text/csv"
-            )
-        else:
-            st.error("No data processed. Please check your input files.")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
