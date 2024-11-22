@@ -151,6 +151,10 @@ if st.button("Upload All Files to Drive and Process Data"):
             
             # Load event data
             event_df = pd.read_excel(uploaded_event)
+
+            # Rename the school column in the event data to match outreach data
+            event_df.rename(columns={"Select Your School": "School Name"}, inplace=True)
+
             st.write("Event data loaded successfully!")
 
             # Apply growth officer mapping
