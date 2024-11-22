@@ -179,10 +179,13 @@ if st.button("Upload All Files to Drive and Process Data"):
                 suffixes=('_approved', '_submitted')
             )
             
-            # Remove duplicate rows
+            # Remove duplicate rows across all columns
             final_merged_df = final_merged_df.drop_duplicates()
 
-            st.write("Final Merged Data (Approved + Submitted):")
+            # Reset index to clean up the final DataFrame
+            final_merged_df.reset_index(drop=True, inplace=True)
+
+            st.write("Final Merged Data (Approved + Submitted) - Duplicates Removed:")
             st.dataframe(final_merged_df)
 
             st.success("All data merges completed successfully!")
