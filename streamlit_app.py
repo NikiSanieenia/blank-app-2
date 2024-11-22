@@ -47,8 +47,8 @@ def process_data(outreach_file, event_file):
             ('Davis', 'UC DAVIS')
         ]
 
-        # Initialize a list to store all final DataFrames
-        all_final_dfs = []
+        # Initialize a list to store matched records
+        matched_records = []
 
         # Process each sheet
         for sheet_name, school in schools:
@@ -71,7 +71,6 @@ def process_data(outreach_file, event_file):
             event_df_filtered = event_df_filtered.dropna(subset=['Date of the Event'])
 
             # Match outreach records with events within a 10-day range
-            matched_records = []
             for _, outreach_row in outreach_df.iterrows():
                 outreach_date = outreach_row['Date']
 
@@ -103,12 +102,8 @@ def process_data(outreach_file, event_file):
                     }
                     matched_records.append(combined_row)
 
-            # Convert matched records to DataFrame
-            final_df = pd.DataFrame(matched_records)
-            all_final_dfs.append(final_df)
-
-        # Combine all DataFrames
-        combined_df = pd.concat(all_final_dfs, ignore_index=True)
+        # Convert matched records to a DataFrame
+        combined_df = pd.DataFrame(matched_records)
         return combined_df
 
     except Exception as e:
