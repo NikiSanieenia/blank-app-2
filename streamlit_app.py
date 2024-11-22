@@ -16,6 +16,22 @@ if uploaded_outreach_file and uploaded_event_file and uploaded_approved_file and
     approved_data = pd.read_csv(uploaded_approved_file)
     submitted_data = pd.read_csv(uploaded_submitted_file)
 
+    st.subheader("Loaded Data")
+    st.write("Outreach Data Sheets")
+    for sheet_name, df in outreach_data.items():
+        st.write(f"Sheet: {sheet_name}")
+        st.dataframe(df)
+
+    st.write("Event Data")
+    st.dataframe(event_data)
+
+    st.write("Approved Memberships")
+    st.dataframe(approved_data)
+
+    st.write("Submitted Memberships")
+    st.dataframe(submitted_data)
+
+    # Define schools and mapping
     schools = [
         ('UTA', 'UT ARLINGTON'),
         ('SCU', 'SANTA CLARA'),
@@ -28,7 +44,6 @@ if uploaded_outreach_file and uploaded_event_file and uploaded_approved_file and
         ('Davis', 'UC DAVIS')
     ]
 
-    # Growth Officer mapping
     growth_officer_mapping = {
         'Ileana': 'Ileana Heredia',
         'ileana': 'Ileana Heredia',
@@ -54,15 +69,28 @@ if uploaded_outreach_file and uploaded_event_file and uploaded_approved_file and
         outreach_df = outreach_data[sheet_name]
         outreach_df['Growth Officer'] = outreach_df['Growth Officer'].replace(growth_officer_mapping)
 
+        # Filter for relevant school in event data
         event_df = event_data[event_data['Select Your School'].str.strip().str.upper() == school.upper()]
+
+        # Display intermediate tables
+        st.write(f"Processing Sheet: {sheet_name}")
+        st.write("Outreach Data (Before Cleaning)")
+        st.dataframe(outreach_df)
+
+        st.write("Event Data (Filtered by School)")
+        st.dataframe(event_df)
+
+        # Date processing and filtering
         outreach_df['Date'] = pd.to_datetime(outreach_df['Date'], errors='coerce')
         event_df['Date of the Event'] = pd.to_datetime(event_df['Date of the Event'], errors='coerce')
-
         outreach_df = outreach_df.dropna(subset=['Date'])
         event_df = event_df.dropna(subset=['Date of the Event'])
 
         matched_records = []
+        unmatched_outreach = outreach_df.copy()
+        unmatched_event = event_df.copy()
 
+        # Matching outreach and event data
         for _, outreach_row in outreach_df.iterrows():
             outreach_date = outreach_row['Date']
             matching_events = event_df[
@@ -90,12 +118,19 @@ if uploaded_outreach_file and uploaded_event_file and uploaded_approved_file and
                     'Audience': "/".join(matching_events['Audience'].unique())
                 })
 
+        # Create final DataFrame for this sheet
         final_df = pd.DataFrame(matched_records)
         all_final_dfs.append(final_df)
 
-    Phase_1 = pd.concat(all_final_dfs, ignore_index=True)
+        st.write(f"Matched Records for {sheet_name}")
+        st.dataframe(final_df)
 
-    # Join with approved and submitted data
+    # Combine all sheets
+    Phase_1 = pd.concat(all_final_dfs, ignore_index=True)
+    st.subheader("Phase 1 Combined Data")
+    st.dataframe(Phase_1)
+
+    # Join with approved memberships
     joined_approved = Phase_1.merge(
         approved_data,
         how='left',
@@ -103,8 +138,15 @@ if uploaded_outreach_file and uploaded_event_file and uploaded_approved_file and
         right_on='memberName'
     ).drop_duplicates()
 
+    st.subheader("Joined with Approved Memberships")
+    st.dataframe(joined_approved)
+
     matched_approved = joined_approved[joined_approved['memberName'].notna()]
 
+    st.subheader("Matched Approved Data")
+    st.dataframe(matched_approved)
+
+    # Join with submitted memberships
     joined_submitted = Phase_1.merge(
         submitted_data,
         how='left',
@@ -112,16 +154,22 @@ if uploaded_outreach_file and uploaded_event_file and uploaded_approved_file and
         right_on='memberName'
     ).drop_duplicates()
 
+    st.subheader("Joined with Submitted Memberships")
+    st.dataframe(joined_submitted)
+
     matched_submitted = joined_submitted[joined_submitted['memberName'].notna()]
 
+    st.subheader("Matched Submitted Data")
+    st.dataframe(matched_submitted)
+
+    # Combine matched data
     final_table = matched_approved.merge(
         matched_submitted,
         how='left',
         on=[col for col in matched_approved.columns if col in matched_submitted.columns]
     ).drop_duplicates()
 
-    # Display the final table
-    st.write("Final Table")
+    st.subheader("Final Table")
     st.dataframe(final_table)
 
 else:
