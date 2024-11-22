@@ -41,19 +41,19 @@ uploaded_submitted = st.file_uploader("Upload Submitted Applications File", type
 
 # Growth officer mapping dictionary
 growth_officer_mapping = {
-   'Ileana': 'Ileana Heredia',
-   'ileana': 'Ileana Heredia',
-   'BK': 'Brian Kahmar',
-   'JR': 'Julia Racioppo',
-   'Jordan': 'Jordan Richied',
-   'VN': 'Veronica Nims',
-   'vn': 'Veronica Nims',
-   'Dom': 'Domenic Noto',
-   'Megan': 'Megan Sterling',
-   'Veronica': 'Veronica Nims',
-   'SB': 'Sheena Barlow',
-   'Julio': 'Julio Macias',
-   'Mo': 'Monisha Donaldson'
+    'Ileana': 'Ileana Heredia',
+    'ileana': 'Ileana Heredia',
+    'BK': 'Brian Kahmar',
+    'JR': 'Julia Racioppo',
+    'Jordan': 'Jordan Richied',
+    'VN': 'Veronica Nims',
+    'vn': 'Veronica Nims',
+    'Dom': 'Domenic Noto',
+    'Megan': 'Megan Sterling',
+    'Veronica': 'Veronica Nims',
+    'SB': 'Sheena Barlow',
+    'Julio': 'Julio Macias',
+    'Mo': 'Monisha Donaldson'
 }
 
 # Helper function to read Excel files and add sheet name column
@@ -61,7 +61,7 @@ def read_excel_file(file, sheet_names):
     try:
         all_dfs = []
         for sheet in sheet_names:
-            temp_df = pd.read_excel(file, sheet_name=sheet)
+            temp_df = pd.read_excel(file, sheet_name=sheet, engine='openpyxl')
             temp_df['School Name'] = sheet  # Add a column for the sheet name
             all_dfs.append(temp_df)
         return pd.concat(all_dfs, ignore_index=True)
@@ -95,7 +95,7 @@ if st.button("Upload All Files to Drive and Process Data"):
             st.write("Outreach data loaded successfully with sheet names!")
             
             # Load event data
-            event_df = pd.read_excel(uploaded_event)
+            event_df = pd.read_excel(uploaded_event, engine='openpyxl')
             st.write("Event data loaded successfully!")
 
             # Apply growth officer mapping
@@ -136,10 +136,10 @@ if st.button("Upload All Files to Drive and Process Data"):
             st.dataframe(event_outreach_df)
 
             # Load approved and submitted applications
-            approved_df = pd.read_excel(uploaded_approved)
+            approved_df = pd.read_excel(uploaded_approved, engine='openpyxl')
             st.write("Approved Applications data loaded successfully!")
 
-            submitted_df = pd.read_excel(uploaded_submitted)
+            submitted_df = pd.read_excel(uploaded_submitted, engine='openpyxl')
             st.write("Submitted Applications data loaded successfully!")
 
             # Perform a left join with Approved Applications
