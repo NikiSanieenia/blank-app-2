@@ -52,16 +52,16 @@ growth_officer_mapping = {
 # Helper function for matching outreach and event data
 def match_outreach_and_events(outreach_df, event_df, tolerance_days=10):
     matched_records = []
-    unmatched_outreach = outreach_df.copy()
-    unmatched_event = event_df.copy()
 
     for _, outreach_row in outreach_df.iterrows():
         outreach_date = outreach_row['Date']
+        # Find matching events within the tolerance range
         matching_events = event_df[
             (event_df['Date of the Event'] >= outreach_date - pd.Timedelta(days=tolerance_days)) &
             (event_df['Date of the Event'] <= outreach_date)
         ]
         if not matching_events.empty:
+            # Combine relevant fields for matching events
             combined_event_name = "/".join(matching_events['Event Name'].unique())
             combined_event_location = "/".join(matching_events['Location'].unique())
             combined_event_officer = "/".join(matching_events['Name'].unique())
@@ -79,39 +79,6 @@ def match_outreach_and_events(outreach_df, event_df, tolerance_days=10):
                 'Request type?': "/".join(matching_events['Request type?'].unique()),
                 'Audience': "/".join(matching_events['Audience'].unique())
             })
-            unmatched_outreach = unmatched_outreach[unmatched_outreach['Date'] != outreach_row['Date']]
-            unmatched_event = unmatched_event[~unmatched_event['Date of the Event'].isin(matching_events['Date of the Event'])]
-        else:
-            matched_records.append({
-                'Outreach Date': outreach_date,
-                'Growth Officer': outreach_row.get('Growth Officer', ''),
-                'Outreach Name': outreach_row.get('Name', ''),
-                'Occupation': outreach_row.get('Occupation', ''),
-                'Email': outreach_row.get('Email', ''),
-                'Date of the Event': None,
-                'Event Location': None,
-                'Event Name': None,
-                'Event Officer': None,
-                'Select Your School': None,
-                'Request type?': None,
-                'Audience': None
-            })
-
-    for _, event_row in unmatched_event.iterrows():
-        matched_records.append({
-            'Outreach Date': None,
-            'Growth Officer': None,
-            'Outreach Name': None,
-            'Occupation': None,
-            'Email': None,
-            'Date of the Event': event_row['Date of the Event'],
-            'Event Location': event_row['Location'],
-            'Event Name': event_row['Event Name'],
-            'Event Officer': event_row['Name'],
-            'Select Your School': event_row['Select Your School'],
-            'Request type?': event_row['Request type?'],
-            'Audience': event_row['Audience']
-        })
 
     return pd.DataFrame(matched_records)
 
