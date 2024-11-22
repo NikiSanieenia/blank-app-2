@@ -34,10 +34,10 @@ st.subheader("Event Debrief File")
 uploaded_event = st.file_uploader("Upload Event Debrief File (Excel)", type=["xlsx"])
 
 st.subheader("Approved Applications File")
-uploaded_approved = st.file_uploader("Upload Approved Applications File", type=["csv", "xlsx", "xls"])
+uploaded_approved = st.file_uploader("Upload Approved Applications File (CSV)", type=["csv"])
 
 st.subheader("Submitted Applications File")
-uploaded_submitted = st.file_uploader("Upload Submitted Applications File", type=["csv", "xlsx", "xls"])
+uploaded_submitted = st.file_uploader("Upload Submitted Applications File (CSV)", type=["csv"])
 
 # Growth officer mapping dictionary
 growth_officer_mapping = {
@@ -56,17 +56,19 @@ growth_officer_mapping = {
     'Mo': 'Monisha Donaldson'
 }
 
-# Helper function to read Excel files and add sheet name column
-def read_excel_file(file, sheet_names):
+# Helper function to read files
+def load_excel(file):
     try:
-        all_dfs = []
-        for sheet in sheet_names:
-            temp_df = pd.read_excel(file, sheet_name=sheet, engine='openpyxl')
-            temp_df['School Name'] = sheet  # Add a column for the sheet name
-            all_dfs.append(temp_df)
-        return pd.concat(all_dfs, ignore_index=True)
+        return pd.read_excel(file, engine='openpyxl')
     except Exception as e:
         st.error(f"An error occurred while reading the Excel file: {e}")
+        return pd.DataFrame()
+
+def load_csv(file):
+    try:
+        return pd.read_csv(file)
+    except Exception as e:
+        st.error(f"An error occurred while reading the CSV file: {e}")
         return pd.DataFrame()
 
 # Submit button and processing
@@ -85,19 +87,10 @@ if st.button("Upload All Files to Drive and Process Data"):
         st.error(f"Error: The following files are missing: {', '.join(missing_files)}")
     else:
         try:
-            # Sheet names to read for outreach data
-            sheet_names = ['Irvine', 'SCU', 'LMU', 'UTA', 'SMC', 'Davis',
-                           'Pepperdine', 'UCLA', 'GT', 'San Diego',
-                           'MISC Schools', 'Template']
+            # Load Member Outreach and Event files
+            outreach_df = load_excel(uploaded_outreach)
+            event_df = load_excel(uploaded_event)
             
-            # Combine outreach data with sheet name tracking
-            outreach_df = read_excel_file(uploaded_outreach, sheet_names)
-            st.write("Outreach data loaded successfully with sheet names!")
-            
-            # Load event data
-            event_df = pd.read_excel(uploaded_event, engine='openpyxl')
-            st.write("Event data loaded successfully!")
-
             # Apply growth officer mapping
             if 'Growth Officer' in outreach_df.columns:
                 outreach_df['Growth Officer'] = outreach_df['Growth Officer'].map(growth_officer_mapping).fillna(outreach_df['Growth Officer'])
@@ -135,12 +128,9 @@ if st.button("Upload All Files to Drive and Process Data"):
             st.write("Merged outreach and event data (Left Join):")
             st.dataframe(event_outreach_df)
 
-            # Load approved and submitted applications
-            approved_df = pd.read_excel(uploaded_approved, engine='openpyxl')
-            st.write("Approved Applications data loaded successfully!")
-
-            submitted_df = pd.read_excel(uploaded_submitted, engine='openpyxl')
-            st.write("Submitted Applications data loaded successfully!")
+            # Load Approved and Submitted Applications files
+            approved_df = load_csv(uploaded_approved)
+            submitted_df = load_csv(uploaded_submitted)
 
             # Perform a left join with Approved Applications
             approved_merged_df = pd.merge(
