@@ -178,6 +178,10 @@ if st.button("Upload All Files to Drive and Process Data"):
                 on=['Name'],  # Ensure 'Name' column exists in both
                 suffixes=('_approved', '_submitted')
             )
+            
+            # Remove duplicate rows
+            final_merged_df = final_merged_df.drop_duplicates()
+
             st.write("Final Merged Data (Approved + Submitted):")
             st.dataframe(final_merged_df)
 
