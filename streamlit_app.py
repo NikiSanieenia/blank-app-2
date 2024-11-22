@@ -162,3 +162,21 @@ if st.button("Upload All Files to Drive and Process Data"):
 
        except Exception as e:
            st.error(f"An error occurred during data processing: {e}")
+
+
+# Display the uploaded files if they exist
+if uploaded_submitted:
+    st.subheader("Submitted Applications File Preview")
+    try:
+        submitted_df = pd.read_excel(uploaded_submitted) if uploaded_submitted.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_submitted)
+        st.dataframe(submitted_df)
+    except Exception as e:
+        st.error(f"An error occurred while previewing the Submitted Applications File: {e}")
+
+if uploaded_approved:
+    st.subheader("Approved Applications File Preview")
+    try:
+        approved_df = pd.read_excel(uploaded_approved) if uploaded_approved.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_approved)
+        st.dataframe(approved_df)
+    except Exception as e:
+        st.error(f"An error occurred while previewing the Approved Applications File: {e}")
