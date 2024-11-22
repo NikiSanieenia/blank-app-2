@@ -29,30 +29,38 @@ st.markdown("""
 # File upload sections with headers
 st.subheader("Member Outreach File")
 uploaded_outreach = st.file_uploader("Upload Member Outreach File (Excel)", type=["xlsx"])
+if uploaded_outreach:
+    st.write("Uploaded Outreach File:", uploaded_outreach.name)
 
 st.subheader("Event Debrief File")
 uploaded_event = st.file_uploader("Upload Event Debrief File (Excel)", type=["xlsx"])
+if uploaded_event:
+    st.write("Uploaded Event Debrief File:", uploaded_event.name)
 
 st.subheader("Approved Applications File")
 uploaded_approved = st.file_uploader("Upload Approved Applications File", type=["csv", "xlsx", "xls"])
+if uploaded_approved:
+    st.write("Uploaded Approved Applications File:", uploaded_approved.name)
 
 st.subheader("Submitted Applications File")
 uploaded_submitted = st.file_uploader("Upload Submitted Applications File", type=["csv", "xlsx", "xls"])
+if uploaded_submitted:
+    st.write("Uploaded Submitted Applications File:", uploaded_submitted.name)
 
 # Growth officer mapping dictionary
 growth_officer_mapping = {
-    'Ileana': 'Ileana Heredia',
-    'BK': 'Brian Kahmar',
-    'JR': 'Julia Racioppo',
-    'Jordan': 'Jordan Richied',
-    'VN': 'Veronica Nims',
-    'vn': 'Veronica Nims',
-    'Dom': 'Domenic Noto',
-    'Megan': 'Megan Sterling',
-    'Veronica': 'Veronica Nims',
-    'SB': 'Sheena Barlow',
-    'Julio': 'Julio Macias',
-    'Mo': 'Monisha Donaldson'
+   'Ileana': 'Ileana Heredia',
+   'BK': 'Brian Kahmar',
+   'JR': 'Julia Racioppo',
+   'Jordan': 'Jordan Richied',
+   'VN': 'Veronica Nims',
+   'vn': 'Veronica Nims',
+   'Dom': 'Domenic Noto',
+   'Megan': 'Megan Sterling',
+   'Veronica': 'Veronica Nims',
+   'SB': 'Sheena Barlow',
+   'Julio': 'Julio Macias',
+   'Mo': 'Monisha Donaldson'
 }
 
 # Helper function to read Excel files and add sheet name column
@@ -63,8 +71,7 @@ def read_excel_file(file, sheet_names):
             temp_df = pd.read_excel(file, sheet_name=sheet)
             temp_df['School Name'] = sheet  # Add a column for the sheet name
             all_dfs.append(temp_df)
-        combined_df = pd.concat(all_dfs, ignore_index=True)
-        return combined_df.drop_duplicates()  # Remove duplicates
+        return pd.concat(all_dfs, ignore_index=True)
     except Exception as e:
         st.error(f"An error occurred while reading the Excel file: {e}")
         return pd.DataFrame()
@@ -80,7 +87,7 @@ if st.button("Upload All Files to Drive and Process Data"):
         missing_files.append("Approved Applications File")
     if not uploaded_submitted:
         missing_files.append("Submitted Applications File")
-
+    
     if missing_files:
         st.error(f"Error: The following files are missing: {', '.join(missing_files)}")
     else:
@@ -89,14 +96,13 @@ if st.button("Upload All Files to Drive and Process Data"):
             sheet_names = ['Irvine', 'SCU', 'LMU', 'UTA', 'SMC', 'Davis',
                            'Pepperdine', 'UCLA', 'GT', 'San Diego',
                            'MISC Schools', 'Template']
-
+            
             # Combine outreach data with sheet name tracking
             outreach_df = read_excel_file(uploaded_outreach, sheet_names)
             st.write("Outreach data loaded successfully with sheet names!")
-
+            
             # Load event data
             event_df = pd.read_excel(uploaded_event)
-            event_df = event_df.drop_duplicates()  # Remove duplicates
             st.write("Event data loaded successfully!")
 
             # Apply growth officer mapping
@@ -130,7 +136,7 @@ if st.button("Upload All Files to Drive and Process Data"):
 
                 # Perform a left join to retain all outreach records
                 result = pd.merge(outreach_df, closest_events, how='left', on=['Date'], suffixes=('', '_event'))
-                return result.drop_duplicates()  # Remove duplicates in the final merged DataFrame
+                return result
 
             # Join outreach and event data
             event_outreach_df = join_with_tolerance(outreach_df, event_df)
