@@ -82,10 +82,10 @@ def process_data(outreach_file, event_file):
                 ]
 
                 if not matching_events.empty:
-                    # Combine event details
-                    combined_event_name = "/".join(matching_events['Event Name'].unique())
-                    combined_event_location = "/".join(matching_events['Location'].unique())
-                    combined_event_officer = "/".join(matching_events['Name'].unique())
+                    # Combine event details without using `.unique()`
+                    combined_event_name = "/".join(matching_events['Event Name'].astype(str))
+                    combined_event_location = "/".join(matching_events['Location'].astype(str))
+                    combined_event_officer = "/".join(matching_events['Name'].astype(str))
 
                     # Create a combined row
                     combined_row = {
@@ -97,9 +97,9 @@ def process_data(outreach_file, event_file):
                         'Event Name': combined_event_name,
                         'Event Location': combined_event_location,
                         'Event Officer': combined_event_officer,
-                        'Select Your School': "/".join(matching_events['Select Your School'].unique()),
-                        'Request type?': "/".join(matching_events['Request type?'].unique()),
-                        'Audience': "/".join(matching_events['Audience'].unique())
+                        'Select Your School': "/".join(matching_events['Select Your School'].astype(str)),
+                        'Request type?': "/".join(matching_events['Request type?'].astype(str)),
+                        'Audience': "/".join(matching_events['Audience'].astype(str))
                     }
                     matched_records.append(combined_row)
 
