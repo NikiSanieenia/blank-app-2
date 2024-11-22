@@ -161,8 +161,13 @@ if st.button("Upload All Files to Drive and Process Data"):
            approved_df = pd.read_excel(uploaded_approved) if uploaded_approved.name.endswith(('.xlsx', '.xls')) else pd.read_csv(uploaded_approved)
            st.write("Approved applications data loaded successfully!")
 
-           # Perform a left join with approved applications
-           final_df = event_outreach_df.merge(approved_df, how='left', on='Some_Common_Column')  # Replace 'Some_Common_Column' with the actual column name
+           # Perform a left join with approved applications using specified keys
+           final_df = event_outreach_df.merge(
+               approved_df,
+               how='left',
+               left_on='Name',  # Column in event_outreach_df
+               right_on='memberName'  # Column in approved_df
+           )
 
            # Display the final result
            st.write("Final Merged DataFrame (Left Join with Approved Applications):")
