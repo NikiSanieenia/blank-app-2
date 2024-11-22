@@ -28,10 +28,10 @@ st.markdown("""
 
 # File upload sections with headers
 st.subheader("Member Outreach File")
-uploaded_outreach = st.file_uploader("Upload Member Outreach File (Excel)", type=["xlsx"])
+uploaded_outreach = st.file_uploader("Upload Member Outreach File (Excel or CSV)", type=["xlsx", "csv"])
 
 st.subheader("Event Debrief File")
-uploaded_event = st.file_uploader("Upload Event Debrief File (Excel)", type=["xlsx"])
+uploaded_event = st.file_uploader("Upload Event Debrief File (Excel or CSV)", type=["xlsx", "csv"])
 
 # Growth officer mapping dictionary
 growth_officer_mapping = {
@@ -115,14 +115,24 @@ def match_outreach_and_events(outreach_df, event_df, tolerance_days=10):
 
     return pd.DataFrame(matched_records)
 
+# Helper function to read Excel or CSV files
+def read_file(file):
+    if file.name.endswith('.xlsx'):
+        return pd.read_excel(file)
+    elif file.name.endswith('.csv'):
+        return pd.read_csv(file)
+    else:
+        st.error("Unsupported file type.")
+        return pd.DataFrame()
+
 # Submit button and processing
 if st.button("Upload All Files to Drive and Process Data"):
     if not uploaded_outreach or not uploaded_event:
         st.error("Please upload both the Member Outreach and Event Debrief files.")
     else:
         try:
-            outreach_df = pd.read_excel(uploaded_outreach)
-            event_df = pd.read_excel(uploaded_event)
+            outreach_df = read_file(uploaded_outreach)
+            event_df = read_file(uploaded_event)
 
             # Standardize Growth Officer names
             outreach_df['Growth Officer'] = outreach_df['Growth Officer'].replace(growth_officer_mapping)
