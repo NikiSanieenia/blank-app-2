@@ -42,7 +42,6 @@ uploaded_submitted = st.file_uploader("Upload Submitted Applications File (CSV)"
 # Growth officer mapping dictionary
 growth_officer_mapping = {
     'Ileana': 'Ileana Heredia',
-    'ileana': 'Ileana Heredia',
     'BK': 'Brian Kahmar',
     'JR': 'Julia Racioppo',
     'Jordan': 'Jordan Richied',
@@ -56,14 +55,20 @@ growth_officer_mapping = {
     'Mo': 'Monisha Donaldson'
 }
 
-# Helper function to read files
-def load_excel(file):
+# Helper function to read Excel files and add sheet name column
+def read_excel_file(file, sheet_names):
     try:
-        return pd.read_excel(file, engine='openpyxl')
+        all_dfs = []
+        for sheet in sheet_names:
+            temp_df = pd.read_excel(file, sheet_name=sheet, engine='openpyxl')
+            temp_df['School Name'] = sheet  # Add a column for the sheet name
+            all_dfs.append(temp_df)
+        return pd.concat(all_dfs, ignore_index=True)
     except Exception as e:
         st.error(f"An error occurred while reading the Excel file: {e}")
         return pd.DataFrame()
 
+# Helper function to read CSV files
 def load_csv(file):
     try:
         return pd.read_csv(file)
@@ -87,10 +92,19 @@ if st.button("Upload All Files to Drive and Process Data"):
         st.error(f"Error: The following files are missing: {', '.join(missing_files)}")
     else:
         try:
-            # Load Member Outreach and Event files
-            outreach_df = load_excel(uploaded_outreach)
-            event_df = load_excel(uploaded_event)
+            # Sheet names to read for outreach data
+            sheet_names = ['Irvine', 'SCU', 'LMU', 'UTA', 'SMC', 'Davis',
+                           'Pepperdine', 'UCLA', 'GT', 'San Diego',
+                           'MISC Schools', 'Template']
             
+            # Combine outreach data with sheet name tracking
+            outreach_df = read_excel_file(uploaded_outreach, sheet_names)
+            st.write("Outreach data loaded successfully with sheet names!")
+            
+            # Load event data
+            event_df = pd.read_excel(uploaded_event, engine='openpyxl')
+            st.write("Event data loaded successfully!")
+
             # Apply growth officer mapping
             if 'Growth Officer' in outreach_df.columns:
                 outreach_df['Growth Officer'] = outreach_df['Growth Officer'].map(growth_officer_mapping).fillna(outreach_df['Growth Officer'])
