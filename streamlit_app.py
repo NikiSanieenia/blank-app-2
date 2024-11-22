@@ -104,68 +104,25 @@ if st.button("Process Data"):
                     ]
 
                     if not matching_events.empty:
-                        combined_event_name = "/".join(matching_events['Event Name'].unique())
-                        combined_event_location = "/".join(matching_events['Location'].unique())
-                        combined_event_officer = "/".join(matching_events['Name'].unique())
-
-                        combined_row = {
-                            'Outreach Date': outreach_row['Date'],
-                            'Growth Officer': outreach_row.get('Growth Officer', ''),
-                            'Outreach Name': outreach_row.get('Name', ''),
-                            'Occupation': outreach_row.get('Occupation', ''),
-                            'Email': outreach_row.get('Email', ''),
-                            'Date of the Event': outreach_date,
-                            'Event Location': combined_event_location,
-                            'Event Name': combined_event_name,
-                            'Event Officer': combined_event_officer,
-                            'Select Your School': "/".join(matching_events['Select Your School'].unique()),
-                            'Request type?': "/".join(matching_events['Request type?'].unique()),
-                            'Audience': "/".join(matching_events['Audience'].unique())
-                        }
+                        combined_row = {**outreach_row.to_dict()}  # Start with all outreach data
+                        for column in matching_events.columns:
+                            combined_row[f"Event_{column}"] = "/".join(matching_events[column].astype(str).unique())
                         matched_records.append(combined_row)
+
                         unmatched_event = unmatched_event[
                             ~unmatched_event['Date of the Event'].isin(matching_events['Date of the Event'])
                         ]
                     else:
-                        unmatched_row = {
-                            'Outreach Date': outreach_row['Date'],
-                            'Growth Officer': outreach_row.get('Growth Officer', ''),
-                            'Outreach Name': outreach_row.get('Name', ''),
-                            'Occupation': outreach_row.get('Occupation', ''),
-                            'Email': outreach_row.get('Email', ''),
-                            'Date of the Event': None,
-                            'Event Location': None,
-                            'Event Name': None,
-                            'Event Officer': None,
-                            'Select Your School': None,
-                            'Request type?': None,
-                            'Audience': None
-                        }
+                        unmatched_row = {**outreach_row.to_dict(), **{f"Event_{col}": None for col in events_df.columns}}
                         matched_records.append(unmatched_row)
 
                 # Add unmatched event records
                 for _, event_row in unmatched_event.iterrows():
-                    unmatched_row = {
-                        'Outreach Date': None,
-                        'Growth Officer': None,
-                        'Outreach Name': None,
-                        'Occupation': None,
-                        'Email': None,
-                        'Date of the Event': event_row['Date of the Event'],
-                        'Event Location': event_row['Location'],
-                        'Event Name': event_row['Event Name'],
-                        'Event Officer': event_row['Name'],
-                        'Select Your School': event_row['Select Your School'],
-                        'Request type?': event_row['Request type?'],
-                        'Audience': event_row['Audience']
-                    }
+                    unmatched_row = {**{col: None for col in outreach_df.columns}, **{f"Event_{col}": event_row[col] for col in event_row.index}}
                     matched_records.append(unmatched_row)
 
                 # Create final DataFrame and append to list
                 final_df = pd.DataFrame(matched_records)
-                final_df = final_df.dropna(
-                    subset=['Outreach Date', 'Growth Officer', 'Outreach Name', 'Occupation', 'Email'], how='all'
-                )
                 all_final_dfs.append(final_df)
                 total_rows_individual += len(final_df)
 
