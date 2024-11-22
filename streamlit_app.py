@@ -29,150 +29,151 @@ st.markdown("""
 # File upload sections with headers
 st.subheader("Member Outreach File")
 uploaded_outreach = st.file_uploader("Upload Member Outreach File (Excel)", type=["xlsx"])
-if uploaded_outreach:
-    st.write("Uploaded Outreach File:", uploaded_outreach.name)
 
 st.subheader("Event Debrief File")
 uploaded_event = st.file_uploader("Upload Event Debrief File (Excel)", type=["xlsx"])
-if uploaded_event:
-    st.write("Uploaded Event Debrief File:", uploaded_event.name)
-
-st.subheader("Approved Applications File")
-uploaded_approved = st.file_uploader("Upload Approved Applications File", type=["csv", "xlsx", "xls"])
-if uploaded_approved:
-    st.write("Uploaded Approved Applications File:", uploaded_approved.name)
-
-st.subheader("Submitted Applications File")
-uploaded_submitted = st.file_uploader("Upload Submitted Applications File", type=["csv", "xlsx", "xls"])
-if uploaded_submitted:
-    st.write("Uploaded Submitted Applications File:", uploaded_submitted.name)
 
 # Growth officer mapping dictionary
 growth_officer_mapping = {
-   'Ileana': 'Ileana Heredia',
-   'BK': 'Brian Kahmar',
-   'JR': 'Julia Racioppo',
-   'Jordan': 'Jordan Richied',
-   'VN': 'Veronica Nims',
-   'vn': 'Veronica Nims',
-   'Dom': 'Domenic Noto',
-   'Megan': 'Megan Sterling',
-   'Veronica': 'Veronica Nims',
-   'SB': 'Sheena Barlow',
-   'Julio': 'Julio Macias',
-   'Mo': 'Monisha Donaldson'
+    'Ileana': 'Ileana Heredia',
+    'BK': 'Brian Kahmar',
+    'JR': 'Julia Racioppo',
+    'Jordan': 'Jordan Richied',
+    'VN': 'Veronica Nims',
+    'vn': 'Veronica Nims',
+    'Dom': 'Domenic Noto',
+    'Megan': 'Megan Sterling',
+    'Veronica': 'Veronica Nims',
+    'SB': 'Sheena Barlow',
+    'Julio': 'Julio Macias',
+    'Mo': 'Monisha Donaldson'
 }
 
-# Helper function to read Excel files and add sheet name column
-def read_excel_file(file, sheet_names):
-    try:
-        all_dfs = []
-        for sheet in sheet_names:
-            temp_df = pd.read_excel(file, sheet_name=sheet)
-            temp_df['School Name'] = sheet  # Add a column for the sheet name
-            all_dfs.append(temp_df)
-        return pd.concat(all_dfs, ignore_index=True)
-    except Exception as e:
-        st.error(f"An error occurred while reading the Excel file: {e}")
-        return pd.DataFrame()
-
-# Updated join_with_tolerance function
-def join_with_tolerance(outreach_df, event_df, tolerance_days=10):
-    """
-    Perform a left join between outreach and event data with a tolerance on dates and school name matching.
-
-    Args:
-        outreach_df (pd.DataFrame): The outreach data with 'Date' and 'School Name'.
-        event_df (pd.DataFrame): The event data with 'Date of the Event' and 'School Name'.
-        tolerance_days (int): The maximum allowed difference in days for a match.
-
-    Returns:
-        pd.DataFrame: The merged DataFrame with outreach and event data.
-    """
-    # Ensure both DataFrames have valid dates and school names
-    outreach_df = outreach_df.dropna(subset=['Date', 'School Name']).copy()
-    event_df = event_df.dropna(subset=['Date of the Event', 'School Name']).copy()
-
-    # Normalize the school names for consistent matching
-    outreach_df['School Name'] = outreach_df['School Name'].str.strip().str.lower()
-    event_df['School Name'] = event_df['School Name'].str.strip().str.lower()
-
-    # Add a key for Cartesian product merge
-    outreach_df['key'] = 1
-    event_df['key'] = 1
-
-    # Create the Cartesian product
-    merged = pd.merge(outreach_df, event_df, on='key').drop(columns=['key'])
-
-    # Filter for school name match and date difference within tolerance
-    merged = merged[
-        (merged['School Name_x'] == merged['School Name_y']) &  # Match school names
-        (merged['Date of the Event'] >= merged['Date']) &       # Event date >= Outreach date
-        ((merged['Date of the Event'] - merged['Date']).dt.days <= tolerance_days)  # Within tolerance
-    ]
-
-    # Calculate date difference
-    merged['date_diff'] = (merged['Date of the Event'] - merged['Date']).dt.days
-
-    # Keep only the closest event for each outreach date
-    closest_events = merged.loc[merged.groupby(['Date', 'School Name_x'])['date_diff'].idxmin()]
-
-    # Perform a left join to retain all outreach records
-    result = pd.merge(outreach_df, closest_events, 
-                      how='left', 
-                      on=['Date', 'School Name'], 
-                      suffixes=('', '_event'))
-    return result
+# School mapping for sheet names
+schools = [
+    ('UTA', 'UT ARLINGTON'),
+    ('SCU', 'SANTA CLARA'),
+    ('UCLA', 'UCLA'),
+    ('LMU', 'LMU'),
+    ('Pepperdine', 'PEPPERDINE'),
+    ('Irvine', 'UC IRVINE'),
+    ('San Diego', 'UC SAN DIEGO'),
+    ('SMC', 'SAINT MARY\'S'),
+    ('Davis', 'UC DAVIS')
+]
 
 # Submit button and processing
-if st.button("Upload All Files to Drive and Process Data"):
-    missing_files = []
-    if not uploaded_outreach:
-        missing_files.append("Member Outreach File")
-    if not uploaded_event:
-        missing_files.append("Event Debrief File")
-    if not uploaded_approved:
-        missing_files.append("Approved Applications File")
-    if not uploaded_submitted:
-        missing_files.append("Submitted Applications File")
-    
-    if missing_files:
-        st.error(f"Error: The following files are missing: {', '.join(missing_files)}")
+if st.button("Process Data"):
+    if not uploaded_outreach or not uploaded_event:
+        st.error("Both files must be uploaded.")
     else:
         try:
-            # Sheet names to read for outreach data
-            sheet_names = ['Irvine', 'SCU', 'LMU', 'UTA', 'SMC', 'Davis',
-                           'Pepperdine', 'UCLA', 'GT', 'San Diego',
-                           'MISC Schools', 'Template']
-            
-            # Combine outreach data with sheet name tracking
-            outreach_df = read_excel_file(uploaded_outreach, sheet_names)
-            st.write("Outreach data loaded successfully with sheet names!")
-            
-            # Load event data
-            event_df = pd.read_excel(uploaded_event)
+            all_final_dfs = []
+            total_rows_individual = 0  # To track the sum of rows from all individual DataFrames
 
-            # Rename the school column in the event data to match outreach data
-            event_df.rename(columns={"Select Your School": "School Name"}, inplace=True)
+            # Process each sheet in the outreach file
+            for sheet_name, school in schools:
+                outreach_df = pd.read_excel(uploaded_outreach, sheet_name=sheet_name)
+                event_df = pd.read_excel(uploaded_event, sheet_name="Growth")  # Only read the "Growth" sheet
 
-            st.write("Event data loaded successfully!")
+                # Standardize Growth Officer names using the mapping
+                outreach_df['Growth Officer'] = outreach_df['Growth Officer'].replace(growth_officer_mapping)
 
-            # Apply growth officer mapping
-            if 'Growth Officer' in outreach_df.columns:
-                outreach_df['Growth Officer'] = outreach_df['Growth Officer'].map(growth_officer_mapping).fillna(outreach_df['Growth Officer'])
-                st.write("Growth Officer names mapped successfully!")
+                # Filter for relevant school in the events data
+                events_df = event_df[event_df['Select Your School'].str.strip().str.upper() == school.upper()]
 
-            # Convert date columns to datetime
-            outreach_df['Date'] = pd.to_datetime(outreach_df['Date'], errors='coerce')
-            event_df['Date of the Event'] = pd.to_datetime(event_df['Date of the Event'], errors='coerce')
+                # Convert date columns to datetime
+                outreach_df['Date'] = pd.to_datetime(outreach_df['Date'], errors='coerce')
+                events_df['Date of the Event'] = pd.to_datetime(events_df['Date of the Event'], errors='coerce')
 
-            # Join outreach and event data
-            event_outreach_df = join_with_tolerance(outreach_df, event_df)
+                # Drop rows with NaT in date columns
+                outreach_df = outreach_df.dropna(subset=['Date'])
+                events_df = events_df.dropna(subset=['Date of the Event'])
 
-            st.write("Merged outreach and event data (Left Join):")
-            st.dataframe(event_outreach_df)
+                # Match outreach records with events within a 10-day range
+                matched_records = []
+                unmatched_event = events_df.copy()
 
-            st.success("Data processing completed successfully!")
+                for _, outreach_row in outreach_df.iterrows():
+                    outreach_date = outreach_row['Date']
+
+                    # Find events within 10 days after the outreach date
+                    matching_events = events_df[
+                        (events_df['Date of the Event'] >= outreach_date - pd.Timedelta(days=10)) &
+                        (events_df['Date of the Event'] <= outreach_date)
+                    ]
+
+                    if not matching_events.empty:
+                        combined_event_name = "/".join(matching_events['Event Name'].unique())
+                        combined_event_location = "/".join(matching_events['Location'].unique())
+                        combined_event_officer = "/".join(matching_events['Name'].unique())
+
+                        combined_row = {
+                            'Outreach Date': outreach_row['Date'],
+                            'Growth Officer': outreach_row.get('Growth Officer', ''),
+                            'Outreach Name': outreach_row.get('Name', ''),
+                            'Occupation': outreach_row.get('Occupation', ''),
+                            'Email': outreach_row.get('Email', ''),
+                            'Date of the Event': outreach_date,
+                            'Event Location': combined_event_location,
+                            'Event Name': combined_event_name,
+                            'Event Officer': combined_event_officer,
+                            'Select Your School': "/".join(matching_events['Select Your School'].unique()),
+                            'Request type?': "/".join(matching_events['Request type?'].unique()),
+                            'Audience': "/".join(matching_events['Audience'].unique())
+                        }
+                        matched_records.append(combined_row)
+                        unmatched_event = unmatched_event[
+                            ~unmatched_event['Date of the Event'].isin(matching_events['Date of the Event'])
+                        ]
+                    else:
+                        unmatched_row = {
+                            'Outreach Date': outreach_row['Date'],
+                            'Growth Officer': outreach_row.get('Growth Officer', ''),
+                            'Outreach Name': outreach_row.get('Name', ''),
+                            'Occupation': outreach_row.get('Occupation', ''),
+                            'Email': outreach_row.get('Email', ''),
+                            'Date of the Event': None,
+                            'Event Location': None,
+                            'Event Name': None,
+                            'Event Officer': None,
+                            'Select Your School': None,
+                            'Request type?': None,
+                            'Audience': None
+                        }
+                        matched_records.append(unmatched_row)
+
+                # Add unmatched event records
+                for _, event_row in unmatched_event.iterrows():
+                    unmatched_row = {
+                        'Outreach Date': None,
+                        'Growth Officer': None,
+                        'Outreach Name': None,
+                        'Occupation': None,
+                        'Email': None,
+                        'Date of the Event': event_row['Date of the Event'],
+                        'Event Location': event_row['Location'],
+                        'Event Name': event_row['Event Name'],
+                        'Event Officer': event_row['Name'],
+                        'Select Your School': event_row['Select Your School'],
+                        'Request type?': event_row['Request type?'],
+                        'Audience': event_row['Audience']
+                    }
+                    matched_records.append(unmatched_row)
+
+                # Create final DataFrame and append to list
+                final_df = pd.DataFrame(matched_records)
+                final_df = final_df.dropna(
+                    subset=['Outreach Date', 'Growth Officer', 'Outreach Name', 'Occupation', 'Email'], how='all'
+                )
+                all_final_dfs.append(final_df)
+                total_rows_individual += len(final_df)
+
+            # Concatenate all DataFrames
+            Phase_1 = pd.concat(all_final_dfs, ignore_index=True)
+            st.write("Processed Data:")
+            st.dataframe(Phase_1)
+            st.success(f"Data processed successfully! Total rows: {total_rows_individual}")
 
         except Exception as e:
-            st.error(f"An error occurred during data processing: {e}")
+            st.error(f"An error occurred: {e}")
